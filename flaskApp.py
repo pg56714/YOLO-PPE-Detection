@@ -11,72 +11,87 @@ import cv2
 from hubconfCustom import video_detection
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(24))
-app.config['UPLOAD_FOLDER'] = 'static/files'
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", secrets.token_hex(24))
+app.config["UPLOAD_FOLDER"] = "static/files"
 Bootstrap(app)
 socketio = SocketIO(app)
 
+
 class UploadFileForm(FlaskForm):
     file = FileField("File", validators=[InputRequired()])
-    conf_slide = IntegerRangeField('Confidence:  ', default=25, validators=[InputRequired()])
+    conf_slide = IntegerRangeField(
+        "Confidence:  ", default=25, validators=[InputRequired()]
+    )
     submit = SubmitField("Run")
+
 
 detect_count = 0
 safe_count = 0
 
+
 def send_socketio_data():
     global detect_count, safe_count
-    socketio.emit('update_data', {
-        'detect_count': detect_count,
-        'safe_count': safe_count
-    })
+    socketio.emit(
+        "update_data", {"detect_count": detect_count, "safe_count": safe_count}
+    )
 
-def generate_frames(path_x='', conf_=0.25):
+
+def generate_frames(path_x="", conf_=0.25):
     yolo_output = video_detection(path_x, conf_)
     global detect_count, safe_count
     for detection_, d_count, s_count in yolo_output:
         detect_count = str(d_count)
         safe_count = str(s_count)
-        ref, buffer = cv2.imencode('.jpg', detection_)
+        ref, buffer = cv2.imencode(".jpg", detection_)
         frame = buffer.tobytes()
 
         socketio.start_background_task(send_socketio_data)
 
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
 
-@app.route('/', methods=['GET', 'POST'])
+
+@app.route("/", methods=["GET", "POST"])
 def front():
     form = UploadFileForm()
     if form.validate_on_submit():
         file = form.file.data
         conf_ = form.conf_slide.data
-        file_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 
-                                 app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
+        file_path = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            app.config["UPLOAD_FOLDER"],
+            secure_filename(file.filename),
+        )
         file.save(file_path)
-        session['video_path'] = file_path
-        session['conf_'] = conf_
-    return render_template('video.html', form=form)
+        session["video_path"] = file_path
+        session["conf_"] = conf_
+    return render_template("video.html", form=form)
 
-@app.route('/video')
+
+@app.route("/video")
 def video():
-    video_path = session.get('video_path', None)
-    
+    video_path = session.get("video_path", None)
+
     if video_path is None:
-        return send_file(os.path.join(app.config['UPLOAD_FOLDER'], 'Black.png'), mimetype='image/png')
-    
-    conf_ = session.get('conf_', 25)
-    return Response(generate_frames(path_x=video_path,
-                                    conf_=round(float(conf_) / 100, 2)),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+        return send_file(
+            os.path.join(app.config["UPLOAD_FOLDER"], "Black.png"), mimetype="image/png"
+        )
 
-@socketio.on('connect')
+    conf_ = session.get("conf_", 25)
+    return Response(
+        generate_frames(path_x=video_path, conf_=round(float(conf_) / 100, 2)),
+        mimetype="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+@socketio.on("connect")
 def handle_connect():
-    print('Client connected')
+    print("Client connected")
 
-@socketio.on('disconnect')
+
+@socketio.on("disconnect")
 def handle_disconnect():
-    print('Client disconnected')
+    print("Client disconnected")
+
 
 if __name__ == "__main__":
     socketio.run(app, debug=True)

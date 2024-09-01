@@ -1,4 +1,6 @@
 import math
+
+
 def overlap_Area(boxA, boxB):
     # determine the (x, y)-coordinates of the intersection rectangle
     xA = max(boxA[0], boxB[0])
@@ -40,7 +42,7 @@ class EuclideanDistTracker:
             labelParent.append(tempLabel)
             for equipment in objects_rect[1]:
                 ex, ey, ew, eh, elabel = equipment
-                if(overlap_Area(boxA=[x, y, w, h],boxB=[ex, ey, ew, eh])>0.5):
+                if overlap_Area(boxA=[x, y, w, h], boxB=[ex, ey, ew, eh]) > 0.5:
                     labelParent.append(elabel.split(" ")[0])
             labelParent.append(conf_)
             cx = (x + x + w) // 2
@@ -54,7 +56,7 @@ class EuclideanDistTracker:
                 if dist < 100:
                     self.center_points[id] = (cx, cy)
                     # print(self.center_points)
-                    objects_bbs_ids.append([x, y, w, h, id,labelParent])
+                    objects_bbs_ids.append([x, y, w, h, id, labelParent])
                     same_object_detected = True
                     # print(self.id_count)
                     break
@@ -62,7 +64,7 @@ class EuclideanDistTracker:
             # New object is detected we assign the ID to that object
             if same_object_detected is False:
                 self.center_points[self.id_count] = (cx, cy)
-                objects_bbs_ids.append([x, y, w, h, self.id_count,labelParent])
+                objects_bbs_ids.append([x, y, w, h, self.id_count, labelParent])
                 self.id_count += 1
 
         # Clean the dictionary by center points to remove IDS not used anymore
@@ -76,6 +78,3 @@ class EuclideanDistTracker:
         self.center_points = new_center_points.copy()
         # print(id)
         return objects_bbs_ids
-
-
-
