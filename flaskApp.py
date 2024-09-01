@@ -25,12 +25,7 @@ class UploadFileForm(FlaskForm):
     submit = SubmitField("Run")
 
 
-detect_count = 0
-safe_count = 0
-
-
-def send_socketio_data():
-    global detect_count, safe_count
+def send_socketio_data(detect_count, safe_count):
     socketio.emit(
         "update_data", {"detect_count": detect_count, "safe_count": safe_count}
     )
@@ -38,14 +33,11 @@ def send_socketio_data():
 
 def generate_frames(path_x="", conf_=0.25):
     yolo_output = video_detection(path_x, conf_)
-    global detect_count, safe_count
     for detection_, d_count, s_count in yolo_output:
-        detect_count = str(d_count)
-        safe_count = str(s_count)
         ref, buffer = cv2.imencode(".jpg", detection_)
         frame = buffer.tobytes()
 
-        socketio.start_background_task(send_socketio_data)
+        send_socketio_data(d_count, s_count)
 
         yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
 
